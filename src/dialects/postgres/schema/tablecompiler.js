@@ -90,39 +90,62 @@ TableCompiler_PG.prototype.comment = function(comment) {
   this.pushQuery(`comment on table ${this.tableName()} is '${this.single.comment || ''}'`);
 };
 
-// Indexes:
-// -------
+// Indexes
 
-TableCompiler_PG.prototype.primary = function(columns, constraintName) {
-  constraintName = constraintName ? this.formatter.wrap(constraintName) : this.formatter.wrap(`${this.tableNameRaw}_pkey`);
-  this.pushQuery(`alter table ${this.tableName()} add constraint ${constraintName} primary key (${this.formatter.columnize(columns)})`);
-};
-TableCompiler_PG.prototype.unique = function(columns, indexName) {
-  indexName = indexName ? this.formatter.wrap(indexName) : this._indexCommand('unique', this.tableNameRaw, columns);
-  this.pushQuery(`alter table ${this.tableName()} add constraint ${indexName}` +
-    ' unique (' + this.formatter.columnize(columns) + ')');
-};
 TableCompiler_PG.prototype.index = function(columns, indexName, indexType) {
   indexName = indexName ? this.formatter.wrap(indexName) : this._indexCommand('index', this.tableNameRaw, columns);
   this.pushQuery(`create index ${indexName} on ${this.tableName()}${indexType && (` using ${indexType}`) || ''}` +
     ' (' + this.formatter.columnize(columns) + ')');
 };
-TableCompiler_PG.prototype.dropPrimary = function(constraintName) {
-  constraintName = constraintName ? this.formatter.wrap(constraintName) : this.formatter.wrap(this.tableNameRaw + '_pkey');
-  this.pushQuery(`alter table ${this.tableName()} drop constraint ${constraintName}`);
-};
+
 TableCompiler_PG.prototype.dropIndex = function(columns, indexName) {
   indexName = indexName ? this.formatter.wrap(indexName) : this._indexCommand('index', this.tableNameRaw, columns);
   indexName = this.schemaNameRaw ? `${this.formatter.wrap(this.schemaNameRaw)}.${indexName}` : indexName;
   this.pushQuery(`drop index ${indexName}`);
 };
+
+// Primary Key
+TableCompiler_PG.prototype.primary = function(columns, constraintName) {
+  constraintName = constraintName ? this.formatter.wrap(constraintName) : this.formatter.wrap(`${this.tableNameRaw}_pkey`);
+  this.pushQuery(`alter table ${this.tableName()} add constraint ${constraintName} primary key (${this.formatter.columnize(columns)})`);
+};
+
+TableCompiler_PG.prototype.dropPrimary = function(constraintName) {
+  constraintName = constraintName ? this.formatter.wrap(constraintName) : this.formatter.wrap(this.tableNameRaw + '_pkey');
+  this.pushQuery(`alter table ${this.tableName()} drop constraint ${constraintName}`);
+};
+
+TableCompiler_PG.prototype.dropPrimaryIfExists = function(constraintName) {
+  constraintName = constraintName ? this.formatter.wrap(constraintName) : this.formatter.wrap(this.tableNameRaw + '_pkey');
+  this.pushQuery(`alter table ${this.tableName()} drop constraint if exists ${constraintName}`);
+};
+
+//Unique Key
+TableCompiler_PG.prototype.unique = function(columns, indexName) {
+  indexName = indexName ? this.formatter.wrap(indexName) : this._indexCommand('unique', this.tableNameRaw, columns);
+  this.pushQuery(`alter table ${this.tableName()} add constraint ${indexName}` +
+    ' unique (' + this.formatter.columnize(columns) + ')');
+};
+
 TableCompiler_PG.prototype.dropUnique = function(columns, indexName) {
   indexName = indexName ? this.formatter.wrap(indexName) : this._indexCommand('unique', this.tableNameRaw, columns);
   this.pushQuery(`alter table ${this.tableName()} drop constraint ${indexName}`);
 };
+
+TableCompiler_PG.prototype.dropUniqueIfExists = function(columns, indexName) {
+  indexName = indexName ? this.formatter.wrap(indexName) : this._indexCommand('unique', this.tableNameRaw, columns);
+  this.pushQuery(`alter table ${this.tableName()} drop constraint if exists ${indexName}`);
+};
+
+//Foreign Key
 TableCompiler_PG.prototype.dropForeign = function(columns, indexName) {
   indexName = indexName ? this.formatter.wrap(indexName) : this._indexCommand('foreign', this.tableNameRaw, columns);
   this.pushQuery(`alter table ${this.tableName()} drop constraint ${indexName}`);
+};
+
+TableCompiler_PG.prototype.dropForeignIfExists = function(columns, indexName) {
+  indexName = indexName ? this.formatter.wrap(indexName) : this._indexCommand('foreign', this.tableNameRaw, columns);
+  this.pushQuery(`alter table ${this.tableName()} drop constraint if exists ${indexName}`);
 };
 
 export default TableCompiler_PG;

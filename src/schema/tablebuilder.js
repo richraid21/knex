@@ -49,7 +49,10 @@ each([
   'index', 'primary', 'unique',
 
   // Key specific
-  'dropPrimary', 'dropUnique', 'dropIndex', 'dropForeign'
+  'dropPrimary', 'dropPrimaryIfExists',
+  'dropUnique', 'dropUniqueIfExists', 
+  'dropIndex', 'dropIndexIfExists', 
+  'dropForeign', 'dropForeignIfExists'
 
 ], function(method) {
   TableBuilder.prototype[method] = function() {
