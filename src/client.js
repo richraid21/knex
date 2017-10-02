@@ -6,6 +6,8 @@ import Runner from './runner';
 import Formatter from './formatter';
 import Transaction from './transaction';
 
+import CacheUtility from './cache';
+
 import QueryBuilder from './query/builder';
 import QueryCompiler from './query/compiler';
 
@@ -57,6 +59,17 @@ function Client(config = {}) {
   if (config.useNullAsDefault) {
     this.valueForUndefined = null
   }
+  
+  //Cache Stuff
+  this.cache = null;
+  if (config.cache){
+    if (!config.cache.client) {
+      throw new Error(`knex: Required configuration option 'cache.client is missing.'`)
+    } else {
+      this.initializeCache(config.cache)
+    }
+  }
+
 }
 inherits(Client, EventEmitter)
 
@@ -106,6 +119,10 @@ assign(Client.prototype, {
     return new Transaction(this, container, config, outerTx)
   },
 
+  cacheUtility() {
+    return new CacheUtility(this)
+  },
+
   raw() {
     return new Raw(this).set(...arguments)
   },
@@ -134,13 +151,37 @@ assign(Client.prototype, {
   query(connection, obj) {
     if (typeof obj === 'string') obj = {sql: obj}
     obj.bindings = this.prepBindings(obj.bindings)
+    if (this.cache && obj.useCache) {
+      return new Promise((resolver, rejector) => {
+        const queryHash = this.cache.hash(obj.sql + obj.bindings.join(''))
+        obj.hash = queryHash
+        this.cache.get(obj.hash, (err, reply) => {
+          if (reply){
+            console.log('Found in Cache')
+            resolver(reply)
+          } else {
+            console.log('Not in Cache')
+            resolver(this.queryDatabase(connection, obj))
+          }  
+        })
+      })
+    } else {
+      console.log('Skip cache')
+      return this.queryDatabase(connection, obj)
+    }
+
+
+  },
+
+  queryDatabase(connection, obj) {
     debugQuery(obj.sql)
     this.emit('query', assign({__knexUid: connection.__knexUid}, obj))
     debugBindings(obj.bindings)
-    return this._query(connection, obj).catch((err) => {
-      err.message = this._formatQuery(obj.sql, obj.bindings) + ' - ' + err.message
-      this.emit('query-error', err, assign({__knexUid: connection.__knexUid}, obj))
-      throw err
+    return this._query(connection, obj)
+      .catch((err) => {
+        err.message = this._formatQuery(obj.sql, obj.bindings) + ' - ' + err.message
+        this.emit('query-error', err, assign({__knexUid: connection.__knexUid}, obj))
+        throw err
     })
   },
 
@@ -249,6 +290,18 @@ assign(Client.prototype, {
     this.pool = genericPool.createPool(poolSettings.factory, poolSettings.config)
   },
 
+  initializeCache(config) {
+    if (this.cache) {
+      helpers.warn('The cache has already been created')
+      return
+    }
+
+    this.cache = this.cacheUtility()
+    this.cache.create()
+
+    return
+  },
+
   validateConnection(connection) {
     return Promise.resolve(true);
   },
@@ -287,6 +340,7 @@ assign(Client.prototype, {
         .then(() => this.pool.clear())
         .then(() => {
           this.pool = void 0
+          this.cache && this.cache.quit()
           if(typeof callback === 'function') {
             callback();
           }

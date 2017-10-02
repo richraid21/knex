@@ -205,15 +205,33 @@ assign(Client_PG.prototype, {
 
   // Ensures the response is returned in the same format as other clients.
   processResponse(obj, runner) {
+    
     const resp = obj.response;
-    if (obj.output) return obj.output.call(runner, resp);
-    if (obj.method === 'raw') return resp;
-    const { returning } = obj;
-    if (resp.command === 'SELECT') {
-      if (obj.method === 'first') return resp.rows[0];
-      if (obj.method === 'pluck') return map(resp.rows, obj.pluck);
-      return resp.rows;
+    if (this.cache && obj.useCache && resp.command !== 'UPDATE' && resp.command !== 'DELETE'){
+      this.cache.add(obj.hash, obj)
     }
+
+    if (obj.output) 
+      return obj.output.call(runner, resp);
+    
+    if (obj.method === 'raw') 
+      return resp;
+
+    const { returning } = obj;
+    
+    if (resp.command === 'SELECT') {
+      let response = null
+
+      if (obj.method === 'first') 
+        response = resp.rows[0];
+      if (obj.method === 'pluck') 
+        response = map(resp.rows, obj.pluck);
+      
+      response = resp.rows
+      
+      return response
+    }
+    
     if (returning) {
       const returns = [];
       for (let i = 0, l = resp.rows.length; i < l; i++) {

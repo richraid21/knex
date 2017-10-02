@@ -27,18 +27,28 @@ function Builder(client) {
   this._joinFlag = 'inner';
   this._boolFlag = 'and';
   this._notFlag = false;
+
+  this._useCache = false;
+  this._useCacheOptions = {};
 }
 inherits(Builder, EventEmitter);
 
 assign(Builder.prototype, {
 
+  fromCache(options = {}) {
+    this._useCache = true
+    this._useCacheOptions = options
+
+    return this
+  },
+  
   toString() {
     return this.toQuery();
   },
 
   // Convert the current query "toSQL"
   toSQL(method, tz) {
-    return this.client.queryCompiler(this).toSQL(method || this._method, tz);
+    return assign(this.client.queryCompiler(this).toSQL(method || this._method, tz), {useCache: this._useCache});
   },
 
   // Create a shallow clone of the current query builder.
